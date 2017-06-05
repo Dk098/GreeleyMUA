@@ -1,11 +1,10 @@
 package GreeleyMUA.server;
 
+import GreeleyMUA.Response.*;
 import java.io.*;
 import java.net.Socket;
+import java.util.List;
 import java.util.concurrent.Callable;
-import greeleysmtpserver.parser.*;
-import greeleysmtpserver.responder.*;
-import java.net.SocketTimeoutException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -18,9 +17,10 @@ public class ClientHandler implements Callable<Void> {
     private final static Logger errorLogger = Logger.getLogger("errors");
 
     private Socket connection;
-    private BufferedReader in;
+    private Reader in;
     private PrintWriter out;
     private boolean connected;
+    private HTMLRequest postRequest;
 
     public ClientHandler(Socket connection) {
         this.connection = connection;
@@ -32,10 +32,10 @@ public class ClientHandler implements Callable<Void> {
     public Void call() {
         setupStreams();
         //TODO: check to make sure streams are setup
-
-        /*Continously get instructions from client while connection is open*/
         while (connected) {
-            
+            readClientMessage();
+            HTMLResponse query = query();
+            writeResponse(query);
         }
         closeConnection();
         return null;
@@ -43,9 +43,9 @@ public class ClientHandler implements Callable<Void> {
 
     private boolean setupStreams() {
         try {
-            this.in = new BufferedReader(
-                    new InputStreamReader(
-                            this.connection.getInputStream()));
+            this.in
+                    = new InputStreamReader(
+                            this.connection.getInputStream());
             this.out = new PrintWriter(
                     new OutputStreamWriter(
                             this.connection.getOutputStream()));
@@ -61,15 +61,12 @@ public class ClientHandler implements Callable<Void> {
     private HTMLResponse readClientMessage() {
         String line;
         try {
-            line = in.readLine(); //try and read line from server
-            if (line != null) {
-                line = line.trim();
-                SMTPCommand command = SMTPParser.parse(line);
-                if (command.getCommand() == SMTPParser.DATA)
-                    return readDataFromClient((SMTPDataCommand) command);
-                else
-                    return command.execute(session);
-            }
+            StringBuilder sb = new StringBuilder();
+            int c;
+            while ((c = in.read()) != -1)
+                sb.append((char) c);
+            //create formatted request
+            postRequest = new HTMLRequest(sb.toString());
         } catch (IOException ex) { //error reading
             this.connected = false;
         } catch (RuntimeException rex) { //we read in nothing
@@ -79,29 +76,14 @@ public class ClientHandler implements Callable<Void> {
         return null;
     }
 
-    private SMTPResponse readDataFromClient(SMTPDataCommand command) {
-        writeResponse(command.execute(session));
-        while (!command.isDone()) {
-            String line;
-            try {
-                line = in.readLine(); //try and read line from server
-                if (line != null)
-                    command.addData(line, session);
-            } catch (IOException ex) { //error reading
-                this.connected = false;
-                return null;
-            } catch (RuntimeException rex) { //we read in nothing
-                errorLogger.log(Level.SEVERE, "Unexpected error reading client message" + rex.getLocalizedMessage(), rex);
-                this.connected = false;
-                return null;
-            }
-        }
-        SMTPResponse response = command.execute(session);
-        session.setShouldSend(true);
-        return response;
+    private HTMLResponse query() {
+        List<String> messages = DatabaseManager.getInstance().
+                getMessages(postRequest.getUsername(), postRequest.getMd5Password());
+        //need to format response full of mail
+        return new HTMLResponse();//create empty response
     }
 
-    private void writeResponse(SMTPResponse response) {
+    private void writeResponse(HTMLResponse response) {
         try {
             this.out.write(response.toString() + "\r\n");
             this.out.flush();
