@@ -1,7 +1,5 @@
-package greeleysmtpserver.server;
+package GreeleyMUA.server;
 
-import greeleysmtpserver.database.MessageDatabase;
-import greeleysmtpserver.database.UserDatabase;
 import java.io.*;
 import java.net.Socket;
 import java.util.concurrent.Callable;
@@ -22,13 +20,9 @@ public class ClientHandler implements Callable<Void> {
     private Socket connection;
     private BufferedReader in;
     private PrintWriter out;
-    private Session session;
-    private RelayQueue sendQueue;
     private boolean connected;
 
-    public ClientHandler(Socket connection, RelayQueue sendQueue) {
-        this.session = new Session();
-        this.sendQueue = sendQueue;
+    public ClientHandler(Socket connection) {
         this.connection = connection;
         this.connected = true;
         requestLogger.info("Connection opened with " + connection.getInetAddress().getHostAddress());
@@ -41,15 +35,7 @@ public class ClientHandler implements Callable<Void> {
 
         /*Continously get instructions from client while connection is open*/
         while (connected) {
-            SMTPResponse response = readClientMessage(); //get input and parse it
-            if (response == null) break; //returns null if bad input (such as client disconnected)
-            writeResponse(response);//send our resposne to client
-            if (session.shouldSend()) //check if we are ready to send the mail
-                sendQueue.add(session);
-            if (response.getCode() == 221) { //check to see if client asked to quit
-                this.connected = false;
-                break;
-            }
+            
         }
         closeConnection();
         return null;
@@ -63,8 +49,6 @@ public class ClientHandler implements Callable<Void> {
             this.out = new PrintWriter(
                     new OutputStreamWriter(
                             this.connection.getOutputStream()));
-            writeResponse(new SMTPResponse(Codes.REQUESTED_ACTION_OKAY,
-                    UserDatabase.getDomain() + " Simple Mail Transfer Service Ready"));
             return true;
         } catch (IOException ex) {
             this.connected = false;
@@ -74,7 +58,7 @@ public class ClientHandler implements Callable<Void> {
         return false;
     }
 
-    private SMTPResponse readClientMessage() {
+    private HTMLResponse readClientMessage() {
         String line;
         try {
             line = in.readLine(); //try and read line from server
