@@ -1,10 +1,4 @@
-import server, argparse
-
-def main():
-    pass
+import server
 
 if __name__ == "__main__":
-    try:
-        main()
-    except:
-        print("Terminated...")
+    server.main()
