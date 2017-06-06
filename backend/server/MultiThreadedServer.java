@@ -1,4 +1,4 @@
-package GreeleyMUA.server;
+package GreeleyMUA.backend.server;
 
 import java.io.IOException;
 import java.net.ServerSocket;

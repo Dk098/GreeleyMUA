@@ -1,6 +1,6 @@
-package GreeleyMUA.server;
+package GreeleyMUA.backend.server;
 
-import GreeleyMUA.Response.*;
+import GreeleyMUA.backend.response.*;
 import java.io.*;
 import java.net.Socket;
 import java.util.List;
@@ -17,7 +17,7 @@ public class ClientHandler implements Callable<Void> {
     private final static Logger errorLogger = Logger.getLogger("errors");
 
     private Socket connection;
-    private Reader in;
+    private BufferedReader in;
     private PrintWriter out;
     private boolean connected;
     private HTMLRequest postRequest;
@@ -43,9 +43,9 @@ public class ClientHandler implements Callable<Void> {
 
     private boolean setupStreams() {
         try {
-            this.in
-                    = new InputStreamReader(
-                            this.connection.getInputStream());
+            this.in = new BufferedReader(
+                    new InputStreamReader(
+                            this.connection.getInputStream()));
             this.out = new PrintWriter(
                     new OutputStreamWriter(
                             this.connection.getOutputStream()));
@@ -61,12 +61,9 @@ public class ClientHandler implements Callable<Void> {
     private HTMLResponse readClientMessage() {
         String line;
         try {
-            StringBuilder sb = new StringBuilder();
-            int c;
-            while ((c = in.read()) != -1)
-                sb.append((char) c);
             //create formatted request
-            postRequest = new HTMLRequest(sb.toString());
+            postRequest = new HTMLRequest(in.readLine());
+            this.connected = false;
         } catch (IOException ex) { //error reading
             this.connected = false;
         } catch (RuntimeException rex) { //we read in nothing
@@ -80,7 +77,7 @@ public class ClientHandler implements Callable<Void> {
         List<String> messages = DatabaseManager.getInstance().
                 getMessages(postRequest.getUsername(), postRequest.getMd5Password());
         //need to format response full of mail
-        return new HTMLResponse();//create empty response
+        return new HTMLResponse(messages);//create empty response
     }
 
     private void writeResponse(HTMLResponse response) {

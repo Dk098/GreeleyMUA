@@ -1,4 +1,4 @@
-package GreeleyMUA.Response;
+package GreeleyMUA.backend.response;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -14,7 +14,7 @@ import java.util.List;
 public class DatabaseManager {
 
     private String url;
-    private static String FILENAME;
+    private static String FILENAME = "greeleysmtp.db";
     private static DatabaseManager databaseManager = null;
 
     public DatabaseManager() {
@@ -50,6 +50,7 @@ public class DatabaseManager {
     public List<String> getMessages(String username, String md5Password) {
         if (!login(username, md5Password)) return null; //bad credentials
 
+        //need to parse out brackets from list toString
         String query = "SELECT data FROM messages WHERE rcptTo LIKE %" + username + "%;";
         List<String> messages = new ArrayList<>();
         try (Connection conn = connect();
