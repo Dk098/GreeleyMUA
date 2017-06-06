@@ -32,7 +32,7 @@ public class DatabaseManager {
         return databaseManager;
     }
 
-    protected Connection connect() {
+    private Connection connect() {
         // SQLite connection string
         Connection conn = null;
         try {
@@ -44,6 +44,16 @@ public class DatabaseManager {
     }
 
     public boolean login(String username, String md5Password) {
+        String query = "SELECT password FROM users WHERE username = '" + username + "'";
+        try (Connection conn = connect();
+                Statement stmt = conn.createStatement();
+                ResultSet rs = stmt.executeQuery(query)) {
+            while (rs.next()) 
+                return md5Password.equals(rs.getString("password"));
+            return false;
+        } catch (SQLException e) {
+            System.out.println(e.getMessage());
+        }
         return false;
     }
 
@@ -51,7 +61,7 @@ public class DatabaseManager {
         if (!login(username, md5Password)) return null; //bad credentials
 
         //need to parse out brackets from list toString
-        String query = "SELECT data FROM messages WHERE rcptTo LIKE %" + username + "%;";
+        String query = "SELECT data FROM messages WHERE rcptTo LIKE '%" + username + "%';";
         List<String> messages = new ArrayList<>();
         try (Connection conn = connect();
                 Statement stmt = conn.createStatement();
