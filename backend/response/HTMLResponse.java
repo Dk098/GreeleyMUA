@@ -17,7 +17,7 @@ public class HTMLResponse {
     
     @Override
     public String toString(){
-        if(messages == null) return "No Messages";
+        if(messages == null) return "[]";
         else return messages.toString();
     }
 }
